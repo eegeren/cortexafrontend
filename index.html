@@ -5,40 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CORTEXA</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: #0b0f19;
-      color: white;
-    }
-    .box {
-      max-width: 600px;
-      padding: 30px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      text-align: center;
-    }
-    h1 { margin: 0 0 10px; }
-    a {
-      display: inline-block;
-      margin-top: 15px;
-      padding: 10px 16px;
-      background: #3a7;
-      color: white;
-      border-radius: 8px;
-      text-decoration: none;
-    }
+    :root { --bg:#0b0f19; --card:#141b2d; --text:#fff; --btn:#2e7d5b; --muted:#9ab; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:16px system-ui, Arial; display:grid; place-items:center; min-height:100vh; }
+    .card { width:min(720px, 92vw); padding:28px; background:var(--card); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.25); text-align:center; }
+    h1 { margin:0 0 10px; }
+    p { margin:0 0 14px; color:var(--muted); }
+    button { padding:10px 16px; border-radius:10px; border:1px solid var(--btn); background:var(--btn); color:#fff; cursor:pointer; }
+    pre { text-align:left; background:#0f1422; padding:12px; border-radius:10px; overflow:auto; }
+    .row { display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+    input { padding:8px 10px; border-radius:8px; border:1px solid #2b3a55; background:#0f1422; color:#fff; width:280px; }
   </style>
 </head>
 <body>
-  <div class="box">
+  <div class="card">
     <h1>🚀 Cortexa</h1>
-    <p>Frontend yayında! Backend entegrasyonu yakında.</p>
-    <a href="#">Devam Et</a>
+    <p>Frontend yayında. Aşağıdaki butonla Railway’deki API’yi yokla.</p>
+
+    <div class="row">
+      <input id="apiUrl" value="https://api.coinspacetech.net" />
+      <button id="pingBtn">/health çağır</button>
+    </div>
+
+    <pre id="out">Çıktı burada görünecek…</pre>
   </div>
+
+  <script>
+    const out = document.getElementById("out");
+    const btn = document.getElementById("pingBtn");
+    const apiUrl = document.getElementById("apiUrl");
+
+    async function ping() {
+      const base = apiUrl.value.replace(/\/+$/,'');
+      out.textContent = "İstek atılıyor...";
+      try {
+        const r = await fetch(`${base}/health`, { credentials: "include" });
+        const text = await r.text().catch(()=> "");
+        let data;
+        try { data = JSON.parse(text); } catch { data = text; }
+        out.textContent = JSON.stringify({ url: `${base}/health`, status: r.status, data }, null, 2);
+      } catch (e) {
+        out.textContent = "Hata: " + (e?.message || e);
+      }
+    }
+
+    btn.addEventListener("click", ping);
+  </script>
 </body>
 </html>
