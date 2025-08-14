@@ -1,35 +1,51 @@
-// web/lib/api.ts
-import { ensureToken, getToken } from "./auth";
+// apps/web/lib/auth.ts
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+let inMemoryToken: string | null = null;
 
-async function doPost(path: string, body: any) {
-  const token = getToken();
-  const res = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-  return res;
+export function getToken(): string | null {
+  // SSR sırasında localStorage yok; o yüzden hafızadaki kopyayı kullan
+  if (typeof window === "undefined") return inMemoryToken;
+  try {
+    return localStorage.getItem("token");
+  } catch {
+    return inMemoryToken;
+  }
 }
 
-export async function apiPost(path: string, body: any) {
-  // token yoksa veya expired ise otomatik al
-  await ensureToken();
-  let res = await doPost(path, body);
-
-  // 401 alırsak token’ı yenileyip tek kez daha dene
-  if (res.status === 401) {
-    await ensureToken();
-    res = await doPost(path, body);
+export function setToken(t: string | null) {
+  inMemoryToken = t;
+  if (typeof window !== "undefined") {
+    if (t) localStorage.setItem("token", t);
+    else localStorage.removeItem("token");
   }
+}
 
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText} ${txt}`);
+// Basit placeholder: istersen JWT süresi kontrolü ekleyebilirsin
+function isExpired(_t: string | null): boolean {
+  return false; // şimdilik her zaman geçerli varsayıyoruz
+}
+
+/**
+ * Token yoksa veya geçersizse yenilemeye çalışır.
+ * Backend’in varsa /api/auth/refresh endpoint’ini kullanır.
+ * Yoksa no-op (derleme geçsin, akış çalışsın).
+ */
+export default async function ensureToken(): Promise<void> {
+  const t = getToken();
+  if (t && !isExpired(t)) return;
+
+  // (Opsiyonel) refresh denemesi — backend’in varsa aç
+  try {
+    const res = await fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.token) setToken(data.token);
+    }
+  } catch {
+    // sessiz geç
   }
-  return res.json();
 }
